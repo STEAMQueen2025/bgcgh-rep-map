@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BGCGH — Public Representative Heat Map</title>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Open+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bgca-blue:#0085CA; --bgca-blue-dark:#005f91; --bgca-blue-light:#d6edf8;
+    --bgca-red:#DA291C; --bgca-red-light:#fce8e7;
+    --bgca-navy:#003057; --bgca-white:#FFFFFF; --bgca-off-white:#f4f8fb;
+    --bgca-gray-light:#e8eff4; --bgca-gray-dark:#4a6070; --bgca-text:#1a2e3b;
+    --harris:#0085CA; --harris-light:#d6edf8;
+    --fortbend:#DA291C; --fortbend-light:#fce8e7;
+    --waller:#005f91; --waller-light:#cce5f5;
+    --galveston:#003057; --galveston-light:#ccdae5;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Open Sans',Arial,sans-serif;background:var(--bgca-off-white);color:var(--bgca-text);min-height:100vh;}
+
+  .header{background:var(--bgca-blue);position:relative;overflow:hidden;}
+  .header::after{content:'';position:absolute;bottom:0;right:0;width:300px;height:100%;background:linear-gradient(90deg,transparent,rgba(0,48,87,.35));pointer-events:none;}
+  .header-inner{display:flex;align-items:stretch;justify-content:space-between;flex-wrap:wrap;position:relative;z-index:1;}
+  .logo-block{background:#fff;padding:14px 20px;display:flex;align-items:center;flex-shrink:0;border-right:4px solid var(--bgca-red);}
+  .logo-block img{height:52px;width:auto;display:block;}
+  .logo-fallback{font-family:'Oswald',sans-serif;font-size:14px;font-weight:700;color:var(--bgca-blue);line-height:1.2;display:none;}
+  .header-title{padding:14px 24px;flex:1;}
+  .tagline-label{font-size:10px;font-weight:600;letter-spacing:2.5px;text-transform:uppercase;color:rgba(255,255,255,.7);margin-bottom:4px;}
+  h1{font-family:'Oswald',sans-serif;font-size:clamp(15px,2.5vw,25px);font-weight:700;color:#fff;text-transform:uppercase;}
+  h1 span{color:#FFD100;}
+  .header-sub{font-size:11px;color:rgba(255,255,255,.75);margin-top:4px;font-weight:300;}
+  .header-right{display:flex;align-items:center;padding:14px 18px;gap:7px;flex-wrap:wrap;}
+  .red-stripe{background:var(--bgca-red);height:4px;}
+
+  .pill{padding:5px 11px;border-radius:3px;font-family:'Oswald',sans-serif;font-size:11px;font-weight:500;letter-spacing:1px;text-transform:uppercase;cursor:pointer;transition:all .15s;border:2px solid rgba(255,255,255,.5);color:rgba(255,255,255,.85);background:transparent;}
+  .pill.active{background:#fff;color:var(--bgca-blue);border-color:#fff;font-weight:600;}
+  .pill:hover{border-color:#fff;color:#fff;}
+  .pill.active:hover{background:var(--bgca-blue-light);}
+  .pill-red{background:var(--bgca-red);border-color:var(--bgca-red);color:#fff !important;}
+  .pill-red:hover{background:#b8210f;border-color:#b8210f;}
+
+  .main{display:grid;grid-template-columns:285px 1fr;height:calc(100vh - 104px);min-height:500px;}
+
+  .sidebar{background:#fff;border-right:1px solid var(--bgca-gray-light);overflow-y:auto;}
+  .sidebar-section{border-bottom:1px solid var(--bgca-gray-light);padding:12px;}
+  .sidebar-title{font-family:'Oswald',sans-serif;font-size:11px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--bgca-gray-dark);margin-bottom:8px;display:flex;align-items:center;gap:7px;}
+  .county-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+  .club-list{display:flex;flex-direction:column;gap:5px;}
+  .club-card{background:var(--bgca-off-white);border:1px solid var(--bgca-gray-light);border-radius:3px;padding:8px 9px 8px 13px;cursor:pointer;transition:all .15s;position:relative;overflow:hidden;}
+  .club-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;}
+  .club-card.harris::before{background:var(--harris);}
+  .club-card.fortbend::before{background:var(--fortbend);}
+  .club-card.waller::before{background:var(--waller);}
+  .club-card.galveston::before{background:var(--galveston);}
+  .club-card:hover{background:var(--bgca-blue-light);border-color:var(--bgca-blue);transform:translateX(2px);}
+  .club-card.selected{background:var(--bgca-blue-light);border-color:var(--bgca-blue);box-shadow:0 0 0 1px var(--bgca-blue);}
+  .club-name{font-family:'Oswald',sans-serif;font-size:12px;font-weight:600;line-height:1.2;color:var(--bgca-text);}
+  .club-addr{font-size:10px;color:var(--bgca-gray-dark);margin-top:2px;}
+  .club-badge{display:inline-block;margin-top:4px;padding:2px 6px;border-radius:2px;font-size:9px;font-weight:600;font-family:'Oswald',sans-serif;letter-spacing:.5px;text-transform:uppercase;}
+
+  .detail-panel{display:flex;flex-direction:column;overflow-y:auto;background:var(--bgca-off-white);}
+
+  .empty-state{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:40px;text-align:center;}
+  .empty-icon{font-size:48px;opacity:.3;}
+  .empty-title{font-family:'Oswald',sans-serif;font-size:20px;font-weight:600;color:var(--bgca-blue);text-transform:uppercase;letter-spacing:1px;}
+  .empty-sub{font-size:13px;color:var(--bgca-gray-dark);max-width:280px;line-height:1.7;}
+  .tagline-pill{font-family:'Oswald',sans-serif;font-size:13px;font-weight:600;color:var(--bgca-red);letter-spacing:1px;text-transform:uppercase;padding:7px 18px;border-top:2px solid var(--bgca-red);border-bottom:2px solid var(--bgca-red);}
+
+  .club-banner{padding:15px 24px;border-bottom:1px solid var(--bgca-gray-light);background:#fff;}
+  .banner-county{font-family:'Oswald',sans-serif;font-size:10px;font-weight:600;letter-spacing:3px;text-transform:uppercase;margin-bottom:3px;}
+  .banner-name{font-family:'Oswald',sans-serif;font-size:22px;font-weight:700;line-height:1.05;text-transform:uppercase;}
+  .banner-addr{font-size:12px;color:var(--bgca-gray-dark);margin-top:5px;}
+  .banner-phone{font-size:12px;font-weight:600;margin-top:3px;}
+
+  .rep-section{padding:15px 24px;}
+  .section-label{font-family:'Oswald',sans-serif;font-size:10px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--bgca-gray-dark);margin-bottom:10px;border-left:3px solid var(--bgca-red);padding-left:7px;}
+  .rep-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+
+  .rep-card{background:#fff;border:1px solid var(--bgca-gray-light);border-top:3px solid var(--bgca-blue);border-radius:3px;padding:12px;}
+  .rep-role{font-family:'Oswald',sans-serif;font-size:10px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--bgca-blue);margin-bottom:4px;}
+  .rep-name{font-family:'Oswald',sans-serif;font-size:15px;font-weight:700;line-height:1.1;}
+  .rep-precinct{font-size:11px;color:var(--bgca-gray-dark);margin-top:3px;line-height:1.4;}
+  .rep-contact{margin-top:8px;padding-top:8px;border-top:1px solid var(--bgca-gray-light);display:flex;flex-direction:column;gap:4px;}
+  .rep-phone{font-size:11px;color:var(--bgca-gray-dark);}
+  .rep-email{font-size:11px;font-weight:500;}
+  .rep-email a{color:var(--bgca-blue);text-decoration:none;}
+  .rep-email a:hover{text-decoration:underline;}
+  .council-badge{display:inline-block;margin-top:4px;padding:3px 8px;background:var(--bgca-navy);color:#fff;border-radius:2px;font-family:'Oswald',sans-serif;font-size:10px;font-weight:600;letter-spacing:1px;text-transform:uppercase;}
+
+  .notes-box{font-size:13px;color:var(--bgca-gray-dark);line-height:1.8;background:#fff;border:1px solid var(--bgca-gray-light);border-left:4px solid var(--bgca-blue);border-radius:3px;padding:12px 14px;}
+  .no-council{font-size:12px;color:var(--bgca-gray-dark);background:#fff;border:1px solid var(--bgca-gray-light);border-radius:3px;padding:10px 13px;font-style:italic;}
+
+  .print-bar{padding:13px 24px;display:flex;justify-content:flex-end;border-top:1px solid var(--bgca-gray-light);background:#fff;}
+  .btn-print{font-family:'Oswald',sans-serif;font-size:12px;font-weight:600;letter-spacing:1px;text-transform:uppercase;background:var(--bgca-blue);color:#fff;border:none;border-radius:3px;padding:10px 20px;cursor:pointer;display:flex;align-items:center;gap:8px;transition:background .15s;}
+  .btn-print:hover{background:var(--bgca-blue-dark);}
+
+  /* Overview */
+  .ov-wrap{padding:20px 24px;}
+  .ov-eyebrow{font-family:'Oswald',sans-serif;font-size:10px;font-weight:600;letter-spacing:3px;text-transform:uppercase;color:var(--bgca-red);margin-bottom:5px;}
+  .ov-title{font-family:'Oswald',sans-serif;font-size:22px;font-weight:700;text-transform:uppercase;margin-bottom:3px;}
+  .ov-sub{font-size:12px;color:var(--bgca-gray-dark);margin-bottom:20px;}
+  .county-block{margin-bottom:24px;}
+  .county-hdr{font-family:'Oswald',sans-serif;font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:1px;padding:7px 12px;color:#fff;border-radius:3px;margin-bottom:9px;}
+  table.rt{width:100%;border-collapse:collapse;}
+  table.rt th{font-family:'Oswald',sans-serif;font-size:9px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:#fff;text-align:left;padding:7px 10px;background:var(--bgca-blue);}
+  table.rt td{font-size:11px;padding:7px 10px;border-bottom:1px solid var(--bgca-gray-light);background:#fff;vertical-align:top;}
+  table.rt tr:nth-child(even) td{background:var(--bgca-off-white);}
+  table.rt tr:hover td{background:var(--bgca-blue-light);}
+  table.rt td:first-child{font-family:'Oswald',sans-serif;font-size:13px;font-weight:600;color:var(--bgca-blue);}
+  table.rt td a{color:var(--bgca-blue);text-decoration:none;font-size:11px;}
+  table.rt td a:hover{text-decoration:underline;}
+  .alert-box{font-size:11px;color:var(--bgca-red);padding:6px 10px;background:var(--bgca-red-light);border-left:3px solid var(--bgca-red);border-radius:2px;margin-top:6px;}
+  .stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:16px;}
+  .stat-card{background:#fff;border:1px solid var(--bgca-gray-light);border-top:3px solid var(--bgca-blue);border-radius:3px;padding:12px;}
+  .stat-num{font-family:'Oswald',sans-serif;font-size:32px;font-weight:700;color:var(--bgca-blue);line-height:1;}
+  .stat-label{font-size:11px;color:var(--bgca-gray-dark);margin-top:3px;}
+
+  .footer{background:var(--bgca-navy);color:rgba(255,255,255,.5);font-size:10px;text-align:center;padding:6px;letter-spacing:1px;}
+
+  @media print{
+    .header-right,.print-bar,.sidebar,.footer,.red-stripe{display:none!important;}
+    .main{display:block;height:auto;}
+    .detail-panel{overflow:visible;}
+    .rep-grid{grid-template-columns:1fr 1fr;}
+  }
+  @media(max-width:680px){
+    .main{grid-template-columns:1fr;height:auto;}
+    .sidebar{max-height:40vh;}
+    .rep-grid{grid-template-columns:1fr;}
+    .stat-grid{grid-template-columns:1fr 1fr;}
+  }
+  ::-webkit-scrollbar{width:5px;}
+  ::-webkit-scrollbar-track{background:var(--bgca-gray-light);}
+  ::-webkit-scrollbar-thumb{background:var(--bgca-blue);border-radius:3px;}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-inner">
+    <div style="display:flex;align-items:center;flex:1;">
+      <div class="logo-block">
+        <img src="https://www.bgcgh.org/files/74/" alt="BGCGH"
+             onerror="this.style.display='none';this.nextElementSibling.style.display='block';">
+        <div class="logo-fallback">Boys &amp; Girls Clubs<br>of Greater Houston</div>
+      </div>
+      <div class="header-title">
+        <div class="tagline-label">Great Futures Start Here</div>
+        <h1>Public Representative <span>Heat Map</span></h1>
+        <div class="header-sub">Club locations aligned to county commissioners &amp; city council — Harris · Fort Bend · Waller · Galveston</div>
+      </div>
+    </div>
+    <div class="header-right">
+      <span class="pill active" onclick="filterCounty('harris',this)">Harris</span>
+      <span class="pill active" onclick="filterCounty('fortbend',this)">Fort Bend</span>
+      <span class="pill active" onclick="filterCounty('waller',this)">Waller</span>
+      <span class="pill active" onclick="filterCounty('galveston',this)">Galveston</span>
+      <span class="pill pill-red" onclick="showOverview()">County Overview</span>
+    </div>
+  </div>
+</div>
+<div class="red-stripe"></div>
+
+<div class="main">
+  <div class="sidebar" id="sidebar">
+
+    <div class="sidebar-section harris-section">
+      <div class="sidebar-title"><span class="county-dot" style="background:var(--harris)"></span>Harris County</div>
+      <div class="club-list">
+        <div class="club-card harris" onclick="selectClub('jh')">
+          <div class="club-name">John &amp; Cissy Havard Club</div>
+          <div class="club-addr">1520 Airline Dr, Houston 77009</div>
+          <span class="club-badge" style="background:var(--harris-light);color:var(--harris)">Pct 2 · Dist H</span>
+        </div>
+        <div class="club-card harris" onclick="selectClub('morefield')">
+          <div class="club-name">Jim &amp; Barbara Morefield Club</div>
+          <div class="club-addr">5950 Selinsky Rd, Houston 77048</div>
+          <span class="club-badge" style="background:var(--harris-light);color:var(--harris)">Pct 1 · Dist D</span>
+        </div>
+        <div class="club-card harris" onclick="selectClub('springbranch')">
+          <div class="club-name">Spring Branch Club</div>
+          <div class="club-addr">8575 Pitner Rd, Houston 77080</div>
+          <span class="club-badge" style="background:var(--harris-light);color:var(--harris)">Pct 3 · Dist A</span>
+        </div>
+        <div class="club-card harris" onclick="selectClub('springoaks')">
+          <div class="club-name">Spring Oaks Middle Club</div>
+          <div class="club-addr">2150 Shadowdale Dr, Houston 77043</div>
+          <span class="club-badge" style="background:var(--harris-light);color:var(--harris)">Pct 3 · Dist G</span>
+        </div>
+        <div class="club-card harris" onclick="selectClub('housman')">
+          <div class="club-name">Housman Club</div>
+          <div class="club-addr">6705 Housman St, Houston 77055</div>
+          <span class="club-badge" style="background:var(--harris-light);color:var(--harris)">Pct 3 · Dist G</span>
+        </div>
+        <div class="club-card harris" onclick="selectClub('buffalo')">
+          <div class="club-name">Buffalo Creek Club</div>
+          <div class="club-addr">2801 Blalock Rd, Houston 77080</div>
+          <span class="club-badge" style="background:var(--harris-light);color:var(--harris)">Pct 3 · Dist A</span>
+        </div>
+        <div class="club-card harris" onclick="selectClub('fortbendclub')">
+          <div class="club-name">Fort Bend Club</div>
+          <div class="club-addr">5525 Hobby St, Houston 77053</div>
+          <span class="club-badge" style="background:var(--harris-light);color:var(--harris)">Pct 1 · Dist K</span>
+        </div>
+        <div class="club-card harris" onclick="selectClub('hq')">
+          <div class="club-name">BGCGH Headquarters</div>
+          <div class="club-addr">815 Crosby St, Houston 77019</div>
+          <span class="club-badge" style="background:var(--harris-light);color:var(--harris)">Pct 2 · Dist H</span>
+        </div>
+        <div class="club-card harris" onclick="selectClub('kipp')">
+          <div class="club-name">KIPP Sharpstown Club</div>
+          <div class="club-addr">8430 Westglen Dr, Houston 77063</div>
+          <span class="club-badge" style="background:var(--harris-light);color:var(--harris)">Pct 1 · Dist J</span>
+        </div>
+        <div class="club-card harris" onclick="selectClub('cristo')">
+          <div class="club-name">Cristo Rey Jesuit Club</div>
+          <div class="club-addr">6700 Mt. Carmel Dr, Houston 77087</div>
+          <span class="club-badge" style="background:var(--harris-light);color:var(--harris)">Pct 1 · Dist D</span>
+        </div>
+        <div class="club-card harris" onclick="selectClub('missionbend')">
+          <div class="club-name">Mission Bend Club</div>
+          <div class="club-addr">8709 Addicks Clodine, Houston 77083</div>
+          <span class="club-badge" style="background:var(--harris-light);color:var(--harris)">Pct 3 · Dist F</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="sidebar-section fortbend-section">
+      <div class="sidebar-title"><span class="county-dot" style="background:var(--fortbend)"></span>Fort Bend County</div>
+      <div class="club-list">
+        <div class="club-card fortbend" onclick="selectClub('stafford')">
+          <div class="club-name">Stafford Club</div>
+          <div class="club-addr">3110 5th St, Stafford 77477</div>
+          <span class="club-badge" style="background:var(--fortbend-light);color:var(--fortbend)">Pct 1 – Morales</span>
+        </div>
+        <div class="club-card fortbend" onclick="selectClub('richmond')">
+          <div class="club-name">Richmond Club</div>
+          <div class="club-addr">1800 James L. Pink Blvd, Richmond 77469</div>
+          <span class="club-badge" style="background:var(--fortbend-light);color:var(--fortbend)">Pct 2 – Prestage</span>
+        </div>
+        <div class="club-card fortbend" onclick="selectClub('rosenberg')">
+          <div class="club-name">Rosenberg Club</div>
+          <div class="club-addr">1820 Avenue E, Rosenberg 77471</div>
+          <span class="club-badge" style="background:var(--fortbend-light);color:var(--fortbend)">Pct 2 – Prestage</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="sidebar-section waller-section">
+      <div class="sidebar-title"><span class="county-dot" style="background:var(--waller)"></span>Waller County</div>
+      <div class="club-list">
+        <div class="club-card waller" onclick="selectClub('royal')">
+          <div class="club-name">Royal ISD Club</div>
+          <div class="club-addr">2500 Durkin Rd, Pattison 77423</div>
+          <span class="club-badge" style="background:var(--waller-light);color:var(--waller)">Pct 4 – Beckendorff</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="sidebar-section galveston-section">
+      <div class="sidebar-title"><span class="county-dot" style="background:var(--galveston)"></span>Galveston County</div>
+      <div class="club-list">
+        <div class="club-card galveston" onclick="selectClub('mitchell')">
+          <div class="club-name">Johnny Mitchell Club</div>
+          <div class="club-addr">4420 Avenue P, Galveston 77550</div>
+          <span class="club-badge" style="background:var(--galveston-light);color:var(--galveston)">Pct 1 – Apffel</span>
+        </div>
+        <div class="club-card galveston" onclick="selectClub('teen')">
+          <div class="club-name">Johnny Mitchell Island Teen Club</div>
+          <div class="club-addr">4420 Avenue P, Galveston 77550</div>
+          <span class="club-badge" style="background:var(--galveston-light);color:var(--galveston)">Pct 1 – Apffel</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="detail-panel" id="detailPanel">
+
+    <div class="empty-state" id="emptyState">
+      <div class="empty-icon">📍</div>
+      <div class="empty-title">Select a Club Location</div>
+      <div class="empty-sub">Click any Club on the left to see its county commissioner, city council district, official emails, and advocacy notes.</div>
+      <div class="tagline-pill">Great Futures Start Here</div>
+      <div style="margin-top:16px;font-size:12px;color:var(--bgca-gray-dark);line-height:2.2;">
+        <strong style="font-family:'Oswald',sans-serif;font-size:15px;color:var(--bgca-blue);">16 Clubs</strong> across 4 counties<br>
+        Harris · Fort Bend · Waller · Galveston<br>
+        Click <strong style="color:var(--bgca-red);">County Overview</strong> for the full rep reference table.
+      </div>
+    </div>
+
+    <div id="clubDetail" style="display:none;flex-direction:column;">
+      <div class="club-banner" id="clubBanner"></div>
+      <div class="rep-section">
+        <div class="section-label">County Commissioner(s) Serving This Area</div>
+        <div class="rep-grid" id="repGrid"></div>
+      </div>
+      <div class="rep-section" style="padding-top:0;" id="councilSection"></div>
+      <div class="rep-section" style="padding-top:0;">
+        <div class="section-label">Notes &amp; Advocacy Opportunities</div>
+        <div class="notes-box" id="clubNotes"></div>
+      </div>
+      <div class="print-bar">
+        <button class="btn-print" onclick="window.print()">
+          <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+          Print This Club's Rep Sheet
+        </button>
+      </div>
+    </div>
+
+    <div id="overviewPanel" style="display:none;">
+      <div class="ov-wrap">
+        <div class="ov-eyebrow">Full Reference Guide</div>
+        <div class="ov-title">County Commissioner Overview</div>
+        <div class="ov-sub">All public representatives across BGCGH's 4-county service area — with official email contacts</div>
+
+        <div class="county-block">
+          <div class="county-hdr" style="background:var(--harris)">Harris County</div>
+          <table class="rt"><thead><tr><th>Name</th><th>Role</th><th>Phone</th><th>Official Email</th><th>BGCGH Clubs</th></tr></thead><tbody>
+            <tr><td>Lina Hidalgo</td><td>County Judge</td><td>713-755-4000</td><td><a href="mailto:judge.hidalgo@harriscountytx.gov">judge.hidalgo@harriscountytx.gov</a></td><td>All Harris Clubs</td></tr>
+            <tr><td>Rodney Ellis</td><td>Commissioner, Pct 1</td><td>713-755-6111</td><td><a href="mailto:Comm_Ellis@cp1.hctx.net">Comm_Ellis@cp1.hctx.net</a></td><td>Fort Bend Club, Morefield, KIPP, Cristo Rey</td></tr>
+            <tr><td>Adrian Garcia</td><td>Commissioner, Pct 2</td><td>713-274-4200</td><td><a href="mailto:commissioner@pct2.hctx.net">commissioner@pct2.hctx.net</a></td><td>John &amp; Cissy Havard, HQ</td></tr>
+            <tr><td>Tom S. Ramsey, P.E.</td><td>Commissioner, Pct 3</td><td>281-353-8424</td><td><a href="mailto:pct3@pct3.com">pct3@pct3.com</a></td><td>Spring Branch, Spring Oaks, Housman, Buffalo Creek, Mission Bend</td></tr>
+            <tr><td>Lesley Briones</td><td>Commissioner, Pct 4</td><td>281-353-8424</td><td><a href="mailto:service@hcp4.net">service@hcp4.net</a></td><td>Houston Texans Club area</td></tr>
+          </tbody></table>
+        </div>
+
+        <div class="county-block">
+          <div class="county-hdr" style="background:var(--bgca-navy)">Houston City Council — Districts Serving BGCGH Clubs</div>
+          <table class="rt"><thead><tr><th>Name</th><th>District</th><th>Phone</th><th>Official Email</th><th>BGCGH Clubs</th></tr></thead><tbody>
+            <tr><td>Amy Peck</td><td>District A</td><td>832-393-3010</td><td><a href="mailto:districta@houstontx.gov">districta@houstontx.gov</a></td><td>Spring Branch, Buffalo Creek</td></tr>
+            <tr><td>Carolyn Evans-Shabazz</td><td>District D</td><td>832-393-3001</td><td><a href="mailto:districtd@houstontx.gov">districtd@houstontx.gov</a></td><td>Morefield, Cristo Rey</td></tr>
+            <tr><td>Tiffany D. Thomas</td><td>District F</td><td>832-393-3002</td><td><a href="mailto:districtf@houstontx.gov">districtf@houstontx.gov</a></td><td>Mission Bend</td></tr>
+            <tr><td>Mary Nan Huffman</td><td>District G</td><td>832-393-3007</td><td><a href="mailto:districtg@houstontx.gov">districtg@houstontx.gov</a></td><td>Spring Oaks, Housman</td></tr>
+            <tr><td>Mario Castillo</td><td>District H</td><td>832-393-3003</td><td><a href="mailto:districth@houstontx.gov">districth@houstontx.gov</a></td><td>John &amp; Cissy Havard, HQ</td></tr>
+            <tr><td>Edward Pollard</td><td>District J</td><td>832-393-3015</td><td><a href="mailto:districtj@houstontx.gov">districtj@houstontx.gov</a></td><td>KIPP Sharpstown</td></tr>
+            <tr><td>Martha Castex-Tatum</td><td>District K (Mayor Pro-Tem)</td><td>832-393-3016</td><td><a href="mailto:districtk@houstontx.gov">districtk@houstontx.gov</a></td><td>Fort Bend Club</td></tr>
+          </tbody></table>
+        </div>
+
+        <div class="county-block">
+          <div class="county-hdr" style="background:var(--fortbend)">Fort Bend County</div>
+          <table class="rt"><thead><tr><th>Name</th><th>Role</th><th>Phone</th><th>Official Email</th><th>BGCGH Clubs</th></tr></thead><tbody>
+            <tr><td>KP George</td><td>County Judge</td><td>281-341-8608</td><td><a href="mailto:county.judge@fortbendcountytx.gov">county.judge@fortbendcountytx.gov</a></td><td>All Fort Bend Clubs</td></tr>
+            <tr><td>Vincent Morales</td><td>Commissioner, Pct 1</td><td>281-342-3411</td><td><a href="mailto:pct1commissioner@fortbendcountytx.gov">pct1commissioner@fortbendcountytx.gov</a></td><td>Stafford Club</td></tr>
+            <tr><td>Grady Prestage</td><td>Commissioner, Pct 2</td><td>281-238-3200</td><td><a href="mailto:pct2commissioner@fortbendcountytx.gov">pct2commissioner@fortbendcountytx.gov</a></td><td>Richmond, Rosenberg</td></tr>
+            <tr><td>Andy Meyers</td><td>Commissioner, Pct 3</td><td>281-342-3411</td><td><a href="mailto:pct3commissioner@fortbendcountytx.gov">pct3commissioner@fortbendcountytx.gov</a></td><td>—</td></tr>
+            <tr><td>Dexter McCoy</td><td>Commissioner, Pct 4</td><td>281-238-3200</td><td><a href="mailto:pct4commissioner@fortbendcountytx.gov">pct4commissioner@fortbendcountytx.gov</a></td><td>—</td></tr>
+          </tbody></table>
+        </div>
+
+        <div class="county-block">
+          <div class="county-hdr" style="background:var(--waller)">Waller County</div>
+          <table class="rt"><thead><tr><th>Name</th><th>Role</th><th>Phone</th><th>Official Email</th><th>BGCGH Clubs</th></tr></thead><tbody>
+            <tr><td>Trey J. Duhon III</td><td>County Judge</td><td>979-826-7700</td><td><a href="mailto:cduhon@co.waller.tx.us">cduhon@co.waller.tx.us</a></td><td>All Waller Clubs</td></tr>
+            <tr><td>John A. Amsler</td><td>Commissioner, Pct 1</td><td>979-826-7700</td><td><a href="mailto:jamsler@co.waller.tx.us">jamsler@co.waller.tx.us</a></td><td>—</td></tr>
+            <tr><td>Walter E. Smith</td><td>Commissioner, Pct 2</td><td>979-826-7700</td><td><a href="mailto:wsmith@co.waller.tx.us">wsmith@co.waller.tx.us</a></td><td>—</td></tr>
+            <tr><td>Kendric D. Jones</td><td>Commissioner, Pct 3</td><td>979-826-7700</td><td><a href="mailto:kjones@co.waller.tx.us">kjones@co.waller.tx.us</a></td><td>—</td></tr>
+            <tr><td>Justin Beckendorff</td><td>Commissioner, Pct 4</td><td>281-375-5231</td><td><a href="mailto:jbeckendorff@co.waller.tx.us">jbeckendorff@co.waller.tx.us</a></td><td>Royal ISD Club</td></tr>
+          </tbody></table>
+          <div class="alert-box">⚠️ Beckendorff is running for County Judge in 2026 — Pct 4 seat will be open.</div>
+        </div>
+
+        <div class="county-block">
+          <div class="county-hdr" style="background:var(--galveston)">Galveston County</div>
+          <table class="rt"><thead><tr><th>Name</th><th>Role</th><th>Phone</th><th>Official Email</th><th>BGCGH Clubs</th></tr></thead><tbody>
+            <tr><td>Mark Henry</td><td>County Judge</td><td>409-766-2244</td><td><a href="mailto:mark.henry@co.galveston.tx.us">mark.henry@co.galveston.tx.us</a></td><td>All Galveston Clubs</td></tr>
+            <tr><td>Darrell Apffel</td><td>Commissioner, Pct 1</td><td>409-770-5474</td><td><a href="mailto:darrell.apffel@co.galveston.tx.us">darrell.apffel@co.galveston.tx.us</a></td><td>Johnny Mitchell Club &amp; Teen Club</td></tr>
+            <tr><td>Joe Giusti</td><td>Commissioner, Pct 2</td><td>409-770-5475</td><td><a href="mailto:joseph.giusti@co.galveston.tx.us">joseph.giusti@co.galveston.tx.us</a></td><td>—</td></tr>
+            <tr><td>Stephen Holmes</td><td>Commissioner, Pct 3</td><td>409-766-2244</td><td><a href="mailto:stephen.holmes@co.galveston.tx.us">stephen.holmes@co.galveston.tx.us</a></td><td>—</td></tr>
+            <tr><td>Robin Armstrong, MD</td><td>Commissioner, Pct 4</td><td>281-316-8744</td><td><a href="mailto:robin.armstrong@co.galveston.tx.us">robin.armstrong@co.galveston.tx.us</a></td><td>—</td></tr>
+          </tbody></table>
+        </div>
+
+        <div class="stat-grid">
+          <div class="stat-card"><div class="stat-num">11</div><div class="stat-label">Harris County Clubs</div></div>
+          <div class="stat-card"><div class="stat-num" style="color:var(--fortbend)">3</div><div class="stat-label">Fort Bend County Clubs</div></div>
+          <div class="stat-card"><div class="stat-num" style="color:var(--waller)">1</div><div class="stat-label">Waller County Club</div></div>
+          <div class="stat-card"><div class="stat-num" style="color:var(--galveston)">2</div><div class="stat-label">Galveston County Clubs</div></div>
+        </div>
+
+        <div class="print-bar" style="padding:14px 0 0 0;margin-top:16px;">
+          <button class="btn-print" onclick="window.print()">
+            <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+            Print Full County Overview
+          </button>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="footer">BOYS &amp; GIRLS CLUBS OF GREATER HOUSTON &nbsp;·&nbsp; GREAT FUTURES START HERE &nbsp;·&nbsp; BGCGH.ORG</div>
+
+<script>
+const clubs = {
+  jh:{name:'John & Cissy Havard Club',address:'1520 Airline Dr, Houston, TX 77009',phone:'713-862-7404',county:'harris',countyName:'Harris County',color:'#0085CA',
+    reps:[{role:'County Judge',name:'Lina Hidalgo',precinct:'County-wide',phone:'713-755-4000',email:'judge.hidalgo@harriscountytx.gov'},{role:'Commissioner, Pct 2',name:'Adrian Garcia',precinct:'Precinct 2 — Near Northside / Heights',phone:'713-274-4200',email:'commissioner@pct2.hctx.net'}],
+    council:{district:'District H',member:'Mario Castillo',phone:'832-393-3003',email:'districth@houstontx.gov'},
+    notes:'Harris County Precinct 2 and Houston City Council District H. Commissioner Garcia and CM Castillo are the primary city and county contacts for this Near Northside location. Strong case for partnership around after-school and STEAM investment in a historically underserved corridor.'},
+  morefield:{name:'Jim & Barbara Morefield Club',address:'5950 Selinsky Rd, Houston, TX 77048',phone:'713-991-5083',county:'harris',countyName:'Harris County',color:'#0085CA',
+    reps:[{role:'County Judge',name:'Lina Hidalgo',precinct:'County-wide',phone:'713-755-4000',email:'judge.hidalgo@harriscountytx.gov'},{role:'Commissioner, Pct 1',name:'Rodney Ellis',precinct:'Precinct 1 — South Houston / Sunnyside',phone:'713-755-6111',email:'Comm_Ellis@cp1.hctx.net'}],
+    council:{district:'District D',member:'Carolyn Evans-Shabazz',phone:'832-393-3001',email:'districtd@houstontx.gov'},
+    notes:'South Houston, Harris Precinct 1 and City Council District D. Commissioner Ellis has championed equity-focused investments. CM Evans-Shabazz represents this historically underserved community — both are strong allies for youth programming advocacy.'},
+  springbranch:{name:'Spring Branch Club',address:'8575 Pitner Rd, Houston, TX 77080',phone:'713-690-3946',county:'harris',countyName:'Harris County',color:'#0085CA',
+    reps:[{role:'County Judge',name:'Lina Hidalgo',precinct:'County-wide',phone:'713-755-4000',email:'judge.hidalgo@harriscountytx.gov'},{role:'Commissioner, Pct 3',name:'Tom S. Ramsey, P.E.',precinct:'Precinct 3 — Northwest Harris County',phone:'281-353-8424',email:'pct3@pct3.com'}],
+    council:{district:'District A',member:'Amy Peck',phone:'832-393-3010',email:'districta@houstontx.gov'},
+    notes:'Northwest Harris, Precinct 3 and City Council District A. Spring Branch is one of Houston\'s most diverse school districts. Multiple BGCGH Clubs fall in Pct 3 — strong case for consolidated engagement with both Commissioner Ramsey and CM Peck.'},
+  springoaks:{name:'Spring Oaks Middle Club',address:'2150 Shadowdale Dr, Houston, TX 77043',phone:'832-368-3956',county:'harris',countyName:'Harris County',color:'#0085CA',
+    reps:[{role:'County Judge',name:'Lina Hidalgo',precinct:'County-wide',phone:'713-755-4000',email:'judge.hidalgo@harriscountytx.gov'},{role:'Commissioner, Pct 3',name:'Tom S. Ramsey, P.E.',precinct:'Precinct 3 — Northwest Harris County',phone:'281-353-8424',email:'pct3@pct3.com'}],
+    council:{district:'District G',member:'Mary Nan Huffman',phone:'832-393-3007',email:'districtg@houstontx.gov'},
+    notes:'Northwest Harris, Precinct 3 and City Council District G. Middle school programming for an area with significant Hispanic and immigrant youth populations. CM Huffman\'s district covers this Spring Branch-adjacent corridor.'},
+  housman:{name:'Housman Club',address:'6705 Housman St, Houston, TX 77055',phone:'832-244-7812',county:'harris',countyName:'Harris County',color:'#0085CA',
+    reps:[{role:'County Judge',name:'Lina Hidalgo',precinct:'County-wide',phone:'713-755-4000',email:'judge.hidalgo@harriscountytx.gov'},{role:'Commissioner, Pct 3',name:'Tom S. Ramsey, P.E.',precinct:'Precinct 3 — Northwest Harris County',phone:'281-353-8424',email:'pct3@pct3.com'}],
+    council:{district:'District G',member:'Mary Nan Huffman',phone:'832-393-3007',email:'districtg@houstontx.gov'},
+    notes:'Spring Branch ISD corridor, Precinct 3 and District G. One of Houston\'s most diverse school districts. Commissioner Ramsey and CM Huffman are both key contacts for infrastructure and community investment in this neighborhood.'},
+  buffalo:{name:'Buffalo Creek Club',address:'2801 Blalock Rd, Houston, TX 77080',phone:'832-792-1006',county:'harris',countyName:'Harris County',color:'#0085CA',
+    reps:[{role:'County Judge',name:'Lina Hidalgo',precinct:'County-wide',phone:'713-755-4000',email:'judge.hidalgo@harriscountytx.gov'},{role:'Commissioner, Pct 3',name:'Tom S. Ramsey, P.E.',precinct:'Precinct 3 — Northwest Harris County',phone:'281-353-8424',email:'pct3@pct3.com'}],
+    council:{district:'District A',member:'Amy Peck',phone:'832-393-3010',email:'districta@houstontx.gov'},
+    notes:'Northwest Harris, Precinct 3 and District A. Buffalo Creek is in a rapidly changing neighborhood near Spring Branch. Both Commissioner Ramsey and CM Peck are contacts for infrastructure investment and youth program support in this corridor.'},
+  fortbendclub:{name:'Fort Bend Club (Harris Co. Address)',address:'5525 Hobby St, Houston, TX 77053',phone:'281-438-4720',county:'harris',countyName:'Harris County',color:'#0085CA',
+    reps:[{role:'County Judge',name:'Lina Hidalgo',precinct:'County-wide',phone:'713-755-4000',email:'judge.hidalgo@harriscountytx.gov'},{role:'Commissioner, Pct 1',name:'Rodney Ellis',precinct:'Precinct 1 — SW Houston / Missouri City border',phone:'713-755-6111',email:'Comm_Ellis@cp1.hctx.net'}],
+    council:{district:'District K',member:'Martha Castex-Tatum (Mayor Pro-Tem)',phone:'832-393-3016',email:'districtk@houstontx.gov'},
+    notes:'Despite the name, this Club has a Houston 77053 address — Harris County Pct 1 and City Council District K. Mayor Pro-Tem Castex-Tatum represents this SW Houston corridor. Dual-county advocacy angle given proximity to Fort Bend County line.'},
+  hq:{name:'BGCGH Headquarters',address:'815 Crosby St, Houston, TX 77019',phone:'713-868-3426',county:'harris',countyName:'Harris County',color:'#0085CA',
+    reps:[{role:'County Judge',name:'Lina Hidalgo',precinct:'County-wide',phone:'713-755-4000',email:'judge.hidalgo@harriscountytx.gov'},{role:'Commissioner, Pct 2',name:'Adrian Garcia',precinct:'Precinct 2 — Midtown / Near Northside',phone:'713-274-4200',email:'commissioner@pct2.hctx.net'}],
+    council:{district:'District H',member:'Mario Castillo',phone:'832-393-3003',email:'districth@houstontx.gov'},
+    notes:'BGCGH administrative home base, Midtown Houston. Harris Precinct 2 and City Council District H. Commissioner Garcia and CM Castillo are the primary relationships to cultivate for org-wide advocacy, data-sharing MOUs, and county-funded youth program grants.'},
+  kipp:{name:'KIPP Sharpstown College Prep Club',address:'8430 Westglen Dr, Houston, TX 77063',phone:'N/A (see HQ)',county:'harris',countyName:'Harris County',color:'#0085CA',
+    reps:[{role:'County Judge',name:'Lina Hidalgo',precinct:'County-wide',phone:'713-755-4000',email:'judge.hidalgo@harriscountytx.gov'},{role:'Commissioner, Pct 1',name:'Rodney Ellis',precinct:'Precinct 1 — SW Houston',phone:'713-755-6111',email:'Comm_Ellis@cp1.hctx.net'}],
+    council:{district:'District J',member:'Edward Pollard',phone:'832-393-3015',email:'districtj@houstontx.gov'},
+    notes:'School-embedded Club at KIPP Sharpstown. Harris Precinct 1 and City Council District J. CM Pollard is a strong equity advocate. Partnership with KIPP aligns with Commissioner Ellis\'s equity platform — compelling joint advocacy story around school-based youth development.'},
+  cristo:{name:'Cristo Rey Jesuit Prep Club',address:'6700 Mt. Carmel Dr, Houston, TX 77087',phone:'N/A (see HQ)',county:'harris',countyName:'Harris County',color:'#0085CA',
+    reps:[{role:'County Judge',name:'Lina Hidalgo',precinct:'County-wide',phone:'713-755-4000',email:'judge.hidalgo@harriscountytx.gov'},{role:'Commissioner, Pct 1',name:'Rodney Ellis',precinct:'Precinct 1 — South Houston / Gulfgate',phone:'713-755-6111',email:'Comm_Ellis@cp1.hctx.net'}],
+    council:{district:'District D',member:'Carolyn Evans-Shabazz',phone:'832-393-3001',email:'districtd@houstontx.gov'},
+    notes:'South Houston, Harris Precinct 1 and City Council District D. Cristo Rey serves first-generation college-bound students from under-resourced families. Both Commissioner Ellis and CM Evans-Shabazz are strong South Houston advocates. College-prep + Club model is a powerful advocacy narrative.'},
+  missionbend:{name:'Mission Bend Club',address:'8709 Addicks Clodine, Houston, TX 77083',phone:'N/A (see HQ)',county:'harris',countyName:'Harris County',color:'#0085CA',
+    reps:[{role:'County Judge',name:'Lina Hidalgo',precinct:'County-wide',phone:'713-755-4000',email:'judge.hidalgo@harriscountytx.gov'},{role:'Commissioner, Pct 3',name:'Tom S. Ramsey, P.E.',precinct:'Precinct 3 — West/SW Harris',phone:'281-353-8424',email:'pct3@pct3.com'}],
+    council:{district:'District F',member:'Tiffany D. Thomas',phone:'832-393-3002',email:'districtf@houstontx.gov'},
+    notes:'Mission Bend, Harris Precinct 3 and City Council District F. Densely populated, majority-minority suburban community. CM Thomas is a strong advocate for underserved SW Houston neighborhoods. High concentration of immigrant and working-class families — strong fit for bilingual youth programming advocacy.'},
+  stafford:{name:'Stafford Club',address:'3110 5th St, Stafford, TX 77477',phone:'832-471-2588',county:'fortbend',countyName:'Fort Bend County',color:'#DA291C',
+    reps:[{role:'County Judge',name:'KP George',precinct:'County-wide',phone:'281-341-8608',email:'county.judge@fortbendcountytx.gov'},{role:'Commissioner, Pct 1',name:'Vincent Morales',precinct:'Precinct 1 — NW Fort Bend / Stafford',phone:'281-342-3411',email:'pct1commissioner@fortbendcountytx.gov'}],
+    council:null,
+    notes:'Stafford is its own independent city with its own school district — no Houston City Council representation. Fort Bend County Precinct 1. Commissioner Morales and County Judge George are the primary contacts for Fort Bend youth funding conversations.'},
+  richmond:{name:'Richmond Club',address:'1800 James L. Pink Blvd, Richmond, TX 77469',phone:'281-232-7599',county:'fortbend',countyName:'Fort Bend County',color:'#DA291C',
+    reps:[{role:'County Judge',name:'KP George',precinct:'County-wide',phone:'281-341-8608',email:'county.judge@fortbendcountytx.gov'},{role:'Commissioner, Pct 2',name:'Grady Prestage',precinct:'Precinct 2 — Central/East Fort Bend',phone:'281-238-3200',email:'pct2commissioner@fortbendcountytx.gov'}],
+    council:null,
+    notes:'Richmond is the Fort Bend County seat — home of Commissioners Court. Commissioner Prestage is the primary contact. High strategic value for in-person Commissioners Court appearances and grant advocacy. Richmond has its own city government.'},
+  rosenberg:{name:'Rosenberg Club',address:'1820 Avenue E, Rosenberg, TX 77471',phone:'832-945-3606',county:'fortbend',countyName:'Fort Bend County',color:'#DA291C',
+    reps:[{role:'County Judge',name:'KP George',precinct:'County-wide',phone:'281-341-8608',email:'county.judge@fortbendcountytx.gov'},{role:'Commissioner, Pct 2',name:'Grady Prestage',precinct:'Precinct 2 — Rosenberg / Richmond corridor',phone:'281-238-3200',email:'pct2commissioner@fortbendcountytx.gov'}],
+    council:null,
+    notes:'Rosenberg, Fort Bend Precinct 2. Historically working-class with significant Hispanic youth populations. Rosenberg and Richmond Clubs together form a powerful paired advocacy opportunity under Commissioner Prestage. Rosenberg has its own city government.'},
+  royal:{name:'Royal ISD Club',address:'2500 Durkin Rd, Pattison, TX 77423',phone:'281-934-3184',county:'waller',countyName:'Waller County',color:'#005f91',
+    reps:[{role:'County Judge',name:'Trey J. Duhon III',precinct:'County-wide',phone:'979-826-7700',email:'cduhon@co.waller.tx.us'},{role:'Commissioner, Pct 4',name:'Justin Beckendorff',precinct:'Pct 4 — Pattison, Brookshire, Katy, Fulshear',phone:'281-375-5231',email:'jbeckendorff@co.waller.tx.us'}],
+    council:null,
+    notes:'⚠️ Leadership Transition: Beckendorff is running for County Judge in 2026 — Pct 4 seat will be open. Begin relationship-building with incoming Pct 4 candidates now. Royal ISD serves a rural, high-poverty district. No Houston City Council jurisdiction; unincorporated Waller County.'},
+  mitchell:{name:'Johnny Mitchell Club',address:'4420 Avenue P, Galveston, TX 77550',phone:'409-763-2227',county:'galveston',countyName:'Galveston County',color:'#003057',
+    reps:[{role:'County Judge',name:'Mark Henry',precinct:'County-wide',phone:'409-766-2244',email:'mark.henry@co.galveston.tx.us'},{role:'Commissioner, Pct 1',name:'Darrell Apffel',precinct:'Pct 1 — Galveston Island',phone:'409-770-5474',email:'darrell.apffel@co.galveston.tx.us'}],
+    council:null,
+    notes:'Galveston Island, Precinct 1. Club Director: Kimberly Bonner. Serves one of the most vulnerable youth populations in the region — island community with post-Harvey recovery needs and high poverty. City of Galveston has its own city council (separate from Houston). Commissioner Apffel and Judge Henry are primary contacts.'},
+  teen:{name:'Johnny Mitchell Island Teen Club',address:'4420 Avenue P, Galveston, TX 77550',phone:'409-763-2227',county:'galveston',countyName:'Galveston County',color:'#003057',
+    reps:[{role:'County Judge',name:'Mark Henry',precinct:'County-wide',phone:'409-766-2244',email:'mark.henry@co.galveston.tx.us'},{role:'Commissioner, Pct 1',name:'Darrell Apffel',precinct:'Pct 1 — Galveston Island',phone:'409-770-5474',email:'darrell.apffel@co.galveston.tx.us'}],
+    council:null,
+    notes:'Teen-focused extension of the Johnny Mitchell Club (same location, Pct 1). Serves 13–18 age group most at risk for disengagement. Galveston teens face unique challenges: seasonal economy, tourism-dependent families, limited higher education pathways. Leverage for dedicated teen programming funding with Commissioner Apffel.'}
+};
+
+function selectClub(id) {
+  document.querySelectorAll('.club-card').forEach(c=>c.classList.remove('selected'));
+  document.querySelectorAll('.club-card').forEach(c=>{
+    if(c.getAttribute('onclick')===`selectClub('${id}')`) c.classList.add('selected');
+  });
+  const club=clubs[id], color=club.color;
+
+  document.getElementById('clubBanner').style.borderLeft=`5px solid ${color}`;
+  document.getElementById('clubBanner').innerHTML=`
+    <div class="banner-county" style="color:${color}">${club.countyName}</div>
+    <div class="banner-name" style="color:${color}">${club.name}</div>
+    <div class="banner-addr">📍 ${club.address}</div>
+    <div class="banner-phone" style="color:${color}">📞 ${club.phone}</div>`;
+
+  document.getElementById('repGrid').innerHTML=club.reps.map(r=>`
+    <div class="rep-card" style="border-top-color:${color}">
+      <div class="rep-role" style="color:${color}">${r.role}</div>
+      <div class="rep-name">${r.name}</div>
+      <div class="rep-precinct">${r.precinct}</div>
+      <div class="rep-contact">
+        <span class="rep-phone">📞 ${r.phone}</span>
+        <span class="rep-email">✉️ <a href="mailto:${r.email}">${r.email}</a></span>
+      </div>
+    </div>`).join('');
+
+  const cs=document.getElementById('councilSection');
+  if(club.council){
+    cs.innerHTML=`
+      <div class="section-label">Houston City Council District</div>
+      <div class="rep-grid">
+        <div class="rep-card" style="border-top-color:var(--bgca-navy);grid-column:1/-1">
+          <div class="rep-role" style="color:var(--bgca-navy)">City Council Member</div>
+          <div class="rep-name">${club.council.member}</div>
+          <div class="rep-precinct"><span class="council-badge">${club.council.district}</span></div>
+          <div class="rep-contact">
+            <span class="rep-phone">📞 ${club.council.phone}</span>
+            <span class="rep-email">✉️ <a href="mailto:${club.council.email}">${club.council.email}</a></span>
+          </div>
+        </div>
+      </div>`;
+  } else {
+    cs.innerHTML=`
+      <div class="section-label">City Council</div>
+      <div class="no-council">This Club is located outside Houston city limits. No Houston City Council representation — this city has its own local government.</div>`;
+  }
+
+  document.getElementById('clubNotes').textContent=club.notes;
+  document.getElementById('emptyState').style.display='none';
+  document.getElementById('overviewPanel').style.display='none';
+  const cd=document.getElementById('clubDetail');
+  cd.style.display='flex';
+  cd.style.flexDirection='column';
+}
+
+function showOverview(){
+  document.querySelectorAll('.club-card').forEach(c=>c.classList.remove('selected'));
+  document.getElementById('emptyState').style.display='none';
+  document.getElementById('clubDetail').style.display='none';
+  document.getElementById('overviewPanel').style.display='block';
+}
+
+function filterCounty(county,el){
+  el.classList.toggle('active');
+  document.querySelectorAll(`.${county}-section`).forEach(s=>{
+    s.style.display=el.classList.contains('active')?'block':'none';
+  });
+}
+</script>
+</body>
+</html>
